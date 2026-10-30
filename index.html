@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Charlie</title>
+  <style>
+    :root {
+      --bg: #5a3fd8;
+      --ink: #ffffff;
+    }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main {
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 0 16px;
+      box-sizing: border-box;
+    }
+    .stage {
+      position: relative;
+      width: min(100%, calc(100vh * 600 / 720));
+      aspect-ratio: 600 / 720;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+    /* browsers only allow sound after a tap, so the first tap also starts audio */
+    .start {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: rgba(30, 16, 80, 0.45);
+      color: var(--ink);
+      font: 600 22px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+      cursor: pointer;
+    }
+    .start[hidden] { display: none; }
+    .error { padding: 16px; text-align: center; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="stage">
+      <canvas id="charlie" width="600" height="720" aria-label="Charlie, an animated fox tutor"></canvas>
+      <button class="start" id="start" type="button">Натисни, щоб почати</button>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@rive-app/webgl2@2.44.2/rive.js"></script>
+  <script>
+    const canvas = document.getElementById("charlie");
+    const start = document.getElementById("start");
+
+    const charlie = new rive.Rive({
+      src: "charlie.riv",
+      canvas,
+      stateMachine: "Charlie",
+      autoplay: true,
+      autoBind: true,
+      layout: new rive.Layout({ fit: rive.Fit.Contain, alignment: rive.Alignment.Center }),
+      onLoad: () => charlie.resizeDrawingSurfaceToCanvas(),
+      onLoadError: () => {
+        document.querySelector(".stage").outerHTML =
+          '<p class="error">Не вдалося завантажити charlie.riv. Відкрий сторінку через веб-сервер, а не як файл.</p>';
+      },
+    });
+
+    // Phones: let sound play with the silent switch on (Safari's audio session),
+    // and unlock audio inside the tap itself with a short silent clip.
+    const unlockAudio = () => {
+      try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+      const clip = new Audio("data:audio/wav;base64,UklGRmQGAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+      clip.play().catch(() => {});
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) { try { const ctx = new Ctx(); ctx.resume().then(() => ctx.close()).catch(() => {}); } catch (e) {} }
+    };
+
+    start.addEventListener("click", () => { unlockAudio(); start.hidden = true; });
+    window.addEventListener("resize", () => charlie.resizeDrawingSurfaceToCanvas());
+
+    // Optional control from the page, e.g. charlieApi.set("mood", 1) or charlieApi.fire("lessonStart")
+    window.charlieApi = {
+      set(name, value) {
+        const vm = charlie.viewModelInstance;
+        const prop = vm && (vm.number(name) || vm.boolean(name));
+        if (prop) prop.value = value;
+      },
+      fire(name) {
+        const vm = charlie.viewModelInstance;
+        const trigger = vm && vm.trigger(name);
+        if (trigger) trigger.trigger();
+      },
+    };
+  </script>
+</body>
+</html>
